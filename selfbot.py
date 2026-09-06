@@ -5,6 +5,7 @@ import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# Используем selfbot_venv где установлен discord.py-self
 SELF_BOT_SITE = os.path.join(
     BASE_DIR,
     "selfbot_venv",
@@ -15,9 +16,15 @@ SELF_BOT_SITE = os.path.join(
 
 if os.path.isdir(SELF_BOT_SITE):
     sys.path.insert(0, SELF_BOT_SITE)
+    print(f"[Selfbot] selfbot_venv найден: {SELF_BOT_SITE}", flush=True)
+else:
+    print(f"[Selfbot] ВНИМАНИЕ: selfbot_venv не найден по пути {SELF_BOT_SITE}", flush=True)
 
 import aiohttp
 import discord
+
+print(f"[Selfbot] discord из: {discord.__file__}", flush=True)
+print(f"[Selfbot] discord версия: {discord.__version__}", flush=True)
 
 REQUEST_FILE = os.path.join(BASE_DIR, "requests.json")
 RESPONSE_FILE = os.path.join(BASE_DIR, "responses.json")

@@ -1,14 +1,12 @@
 import sys
-import importlib
-
-# Принудительно убираем discord.py-self из импорта для этого модуля
-# и подгружаем обычный discord.py
 import aiohttp
 
-# Используем полный путь к discord.py
+# Принудительно используем discord.py (не discord.py-self)
 sys.path.insert(0, "/opt/render/project/src/.venv/lib/python3.12/site-packages")
 import discord
 from discord.ext import commands
+
+print(f"[Client] discord: {discord.__file__}", flush=True)
 
 
 class RoleBot(commands.Bot):

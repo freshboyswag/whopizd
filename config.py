@@ -31,9 +31,6 @@ PROXY_LIST = [
 
 
 async def get_working_proxy() -> tuple[str, aiohttp.BasicAuth] | tuple[None, None]:
-    """
-    Перебирает прокси в случайном порядке, возвращает первую рабочую.
-    """
     auth = aiohttp.BasicAuth(PROXY_USER, PROXY_PASS)
     shuffled = PROXY_LIST.copy()
     random.shuffle(shuffled)

@@ -1,3 +1,6 @@
+"""
+main.py — запускает selfbot и официальный бот как два параллельных процесса.
+"""
 import asyncio
 import subprocess
 import sys
@@ -19,7 +22,10 @@ async def main():
     env = {**os.environ, "PROXY_URL": proxy_url}
 
     selfbot_proc = subprocess.Popen(
-        [sys.executable, "selfbot.py"],
+        [
+            os.path.join(os.path.dirname(__file__), "selfbot_venv", "bin", "python"),
+            "selfbot.py"
+        ],
         env=env,
     )
     print(f"[Main] Selfbot процесс запущен (PID {selfbot_proc.pid})", flush=True)
