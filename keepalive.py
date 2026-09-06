@@ -14,7 +14,7 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def log_message(self, format, *args):
-        pass  # не засоряем консоль логами пингов
+        pass
 
 
 def run_server():
