@@ -7,6 +7,6 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 USER_TOKEN = os.getenv("USER_TOKEN")
 
 if not BOT_TOKEN:
-    raise ValueError("BOT_TOKEN не задан в .env")
+    raise ValueError("BOT_TOKEN не задан")
 if not USER_TOKEN:
-    raise ValueError("USER_TOKEN не задан в .env")
+    raise ValueError("USER_TOKEN не задан")
