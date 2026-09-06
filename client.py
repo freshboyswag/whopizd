@@ -1,6 +1,11 @@
 import discord
 from discord.ext import commands
 import aiohttp
+import importlib
+import sys
+# убедимся что импортируется правильный discord
+import discord
+print(f"[Client] discord version: {discord.__version__}", flush=True)
 
 
 class RoleBot(commands.Bot):
