@@ -7,10 +7,10 @@ class RoleBot(commands.Bot):
         intents = discord.Intents.default()
         intents.members = True
         super().__init__(command_prefix="!", intents=intents)
-        self.selfbot = selfbot  # ссылка на selfbot для запросов данных
+        self.selfbot = selfbot
 
     async def setup_hook(self):
-        from bot.commands import CheckCog
+        from commands import CheckCog
         await self.add_cog(CheckCog(self))
         await self.tree.sync()
         print("[Bot] Слэш-команды синхронизированы")
