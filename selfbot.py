@@ -38,14 +38,10 @@ PROXY_AUTH = aiohttp.BasicAuth(PROXY_USER, PROXY_PASS)
 
 
 class SelfBot(discord.Client):
-
     def __init__(self):
-        intents = discord.Intents.default()
-        intents.members = True
         super().__init__(
             proxy=PROXY_URL,
             proxy_auth=PROXY_AUTH,
-            intents=intents,
         )
         self._ready_event = asyncio.Event()
 
