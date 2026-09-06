@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 REQUEST_FILE = "requests.json"
 RESPONSE_FILE = "responses.json"
-TIMEOUT = 15  # секунд ждём ответа от selfbot
+TIMEOUT = 60  # секунд ждём ответа от selfbot
 
 
 async def ask_selfbot(user_id: int) -> list | None:
