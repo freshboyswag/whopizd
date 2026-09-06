@@ -61,9 +61,8 @@ class SelfBot(discord.Client):
 
                 if member is None:
                     try:
-                        await asyncio.sleep(0.5)
                         member = await guild.fetch_member(user_id)
-                    except Exception:
+                except Exception:
                         continue
 
                 roles = [
