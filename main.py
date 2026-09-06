@@ -1,33 +1,32 @@
-"""
-main.py — запускает selfbot и официальный бот как два параллельных процесса.
-"""
 import asyncio
 import subprocess
 import sys
 import os
 import keepalive
-from config import BOT_TOKEN
+from config import BOT_TOKEN, get_working_proxy
 from client import RoleBot
 
 
-async def run_bot():
-    bot = RoleBot()
-    await bot.start(BOT_TOKEN)
-
-
 async def main():
-    # Keepalive HTTP для Render + UptimeRobot
     keepalive.start()
 
-    # Запускаем selfbot как отдельный процесс
+    proxy_url, proxy_auth = await get_working_proxy()
+
+    if proxy_url is None:
+        print("[Main] Нет рабочих прокси, выход", flush=True)
+        return
+
+    env = {**os.environ, "PROXY_URL": proxy_url}
+
     selfbot_proc = subprocess.Popen(
         [sys.executable, "selfbot.py"],
-        env={**os.environ},
+        env=env,
     )
     print(f"[Main] Selfbot процесс запущен (PID {selfbot_proc.pid})", flush=True)
 
     try:
-        await run_bot()
+        bot = RoleBot(proxy_url=proxy_url, proxy_auth=proxy_auth)
+        await bot.start(BOT_TOKEN)
     finally:
         selfbot_proc.terminate()
         print("[Main] Selfbot процесс остановлен", flush=True)
