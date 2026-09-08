@@ -41,18 +41,14 @@ def format_roles(roles: list) -> str:
     return " · ".join([r['name'] for r in roles])
 
 
-def build_overview_embed(user: discord.User, guild_data: list) -> discord.Embed:
+def build_overview_embed(user: discord.User, guild_data: list, total_guilds: int) -> discord.Embed:
     embed = discord.Embed(color=0x36393F)
-    embed.set_author(
-        name=f"{user.name}",
-        icon_url=user.display_avatar.url
-    )
-    embed.set_thumbnail(url=user.display_avatar.url)
+    embed.set_author(name=f"**{user.name}**")
 
     lines = [f"✅ **{entry['guild_name']}**" for entry in guild_data]
     embed.description = "\n".join(lines) if lines else "Нет серверов с ролями"
 
-    embed.set_footer(text=f"Серверов в базе: {len(guild_data)}")
+    embed.set_footer(text=f"Серверов в базе: {total_guilds}")
     return embed
 
 
@@ -60,7 +56,9 @@ def build_detail_embed(user: discord.User, entry: dict) -> discord.Embed:
     embed = discord.Embed(title=entry["guild_name"], color=0x36393F)
     embed.set_thumbnail(url=user.display_avatar.url)
 
-    embed.add_field(name="Ник", value=entry["nick"] or "—", inline=True)
+    nick = entry.get("nick")
+    if nick and nick != user.name:
+        embed.add_field(name="Ник", value=nick, inline=True)
 
     joined_str = entry.get("joined_at")
     if joined_str:
@@ -145,24 +143,27 @@ class CheckCog(commands.Cog):
                     break
 
         if resolved is None:
-            await interaction.followup.send("❌ Пользователь не найден.", ephemeral=True)
+            await interaction.followup.send("Пользователь не найден.", ephemeral=True)
             return
 
-        await interaction.followup.send("🔍 Ищу данные...", ephemeral=True)
+        await interaction.followup.send("👀Ищу...", ephemeral=True)
+
+        # Считаем все сервера selfbot'а кроме игнорируемых
+        total_guilds = len([g for g in self.bot.guilds]) - len(IGNORED_GUILDS)
 
         guild_data = await ask_selfbot(resolved.id)
 
         if guild_data is None:
-            await interaction.followup.send("⏱️ Selfbot не ответил, попробуй позже.", ephemeral=True)
+            await interaction.followup.send("Selfbot не ответил, попробуй позже.", ephemeral=True)
             return
 
         if not guild_data:
             await interaction.followup.send(
-                f"😶 У **{resolved.name}** нет ролей ни на одном общем сервере.",
+                f"У **{resolved.name}** нет ролей ни на одном общем сервере.",
                 ephemeral=True
             )
             return
 
-        embed = build_overview_embed(resolved, guild_data)
+        embed = build_overview_embed(resolved, guild_data, total_guilds)
         view = GuildSelectView(resolved, guild_data)
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
