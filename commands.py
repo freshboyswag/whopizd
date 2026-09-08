@@ -115,53 +115,42 @@ class CheckCog(commands.Cog):
 
     @app_commands.command(name="check", description="Проверить роли пользователя по всем серверам")
     @app_commands.describe(
-        user="Упомяни пользователя (@user)",
-        user_id="Или введи Discord ID / username пользователя",
+        target="Тег (@user), ID или username пользователя",
     )
     async def check(
         self,
         interaction: discord.Interaction,
-        user: discord.User = None,
-        user_id: str = None,
+        target: str,
     ):
         await interaction.response.defer(ephemeral=True)
 
-        target = None
-        if user:
-            target = user
-        elif user_id:
-            user_id = user_id.strip().lstrip("@")
-            # Пробуем как числовой ID
-            if user_id.isdigit():
-                try:
-                    target = await self.bot.fetch_user(int(user_id))
-                except Exception:
-                    pass
-            # Пробуем как username
-            if target is None:
-                try:
-                    # Ищем по имени среди участников всех серверов бота
-                    for guild in self.bot.guilds:
-                        found = discord.utils.find(
-                            lambda m: m.name.lower() == user_id.lower() or
-                                      (m.nick and m.nick.lower() == user_id.lower()),
-                            guild.members
-                        )
-                        if found:
-                            target = found
-                            break
-                except Exception:
-                    pass
-            if target is None:
-                await interaction.followup.send("❌ Пользователь не найден.", ephemeral=True)
-                return
-        else:
-            await interaction.followup.send("❌ Укажи @пользователя, ID или username.", ephemeral=True)
+        resolved = None
+        target = target.strip().lstrip("@")
+
+        if target.isdigit():
+            try:
+                resolved = await self.bot.fetch_user(int(target))
+            except Exception:
+                pass
+
+        if resolved is None:
+            for guild in self.bot.guilds:
+                found = discord.utils.find(
+                    lambda m: m.name.lower() == target.lower() or
+                              (m.nick and m.nick.lower() == target.lower()),
+                    guild.members
+                )
+                if found:
+                    resolved = found
+                    break
+
+        if resolved is None:
+            await interaction.followup.send("❌ Пользователь не найден.", ephemeral=True)
             return
 
         await interaction.followup.send("🔍 Ищу данные...", ephemeral=True)
 
-        guild_data = await ask_selfbot(target.id)
+        guild_data = await ask_selfbot(resolved.id)
 
         if guild_data is None:
             await interaction.followup.send("⏱️ Selfbot не ответил, попробуй позже.", ephemeral=True)
@@ -169,11 +158,11 @@ class CheckCog(commands.Cog):
 
         if not guild_data:
             await interaction.followup.send(
-                f"😶 У **{target.name}** нет ролей ни на одном общем сервере.",
+                f"😶 У **{resolved.name}** нет ролей ни на одном общем сервере.",
                 ephemeral=True
             )
             return
 
-        embed = build_overview_embed(target, guild_data)
-        view = GuildSelectView(target, guild_data)
+        embed = build_overview_embed(resolved, guild_data)
+        view = GuildSelectView(resolved, guild_data)
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
