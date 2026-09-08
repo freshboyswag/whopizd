@@ -13,7 +13,7 @@ TIMEOUT = 60
 IGNORED_GUILDS = {1346230894951661632}
 
 
-async def ask_selfbot(user_id: int) -> list | None:
+async def ask_selfbot(user_id: int) -> tuple[list, int] | tuple[None, None]:
     req_id = str(uuid.uuid4())
 
     with open(REQUEST_FILE, "w") as f:
@@ -28,11 +28,12 @@ async def ask_selfbot(user_id: int) -> list | None:
                 if resp.get("req_id") == req_id:
                     os.remove(RESPONSE_FILE)
                     data = resp.get("data", [])
-                    return [e for e in data if e["guild_id"] not in IGNORED_GUILDS]
+                    total = resp.get("total_guilds", 0) - len(IGNORED_GUILDS)
+                    return [e for e in data if e["guild_id"] not in IGNORED_GUILDS], total
             except Exception:
                 pass
 
-    return None
+    return None, None
 
 
 def format_roles(roles: list) -> str:
@@ -43,7 +44,7 @@ def format_roles(roles: list) -> str:
 
 def build_overview_embed(user: discord.User, guild_data: list, total_guilds: int) -> discord.Embed:
     embed = discord.Embed(color=0x36393F)
-    embed.set_author(name=f"**{user.name}**")
+    embed.set_author(name=user.name)
 
     lines = [f"✅ **{entry['guild_name']}**" for entry in guild_data]
     embed.description = "\n".join(lines) if lines else "Нет серверов с ролями"
@@ -55,6 +56,8 @@ def build_overview_embed(user: discord.User, guild_data: list, total_guilds: int
 def build_detail_embed(user: discord.User, entry: dict) -> discord.Embed:
     embed = discord.Embed(title=entry["guild_name"], color=0x36393F)
     embed.set_thumbnail(url=user.display_avatar.url)
+
+    embed.add_field(name="Юз", value=user.name, inline=True)
 
     nick = entry.get("nick")
     if nick and nick != user.name:
@@ -111,10 +114,7 @@ class CheckCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="check", description="Проверить роли пользователя по всем серверам")
-    @app_commands.describe(
-        target="Тег (@user), ID или username пользователя",
-    )
+    @app_commands.command(name="check", description="\\")
     async def check(
         self,
         interaction: discord.Interaction,
@@ -146,12 +146,9 @@ class CheckCog(commands.Cog):
             await interaction.followup.send("Пользователь не найден.", ephemeral=True)
             return
 
-        await interaction.followup.send("👀Ищу...", ephemeral=True)
+        await interaction.followup.send("👀 Ищу...", ephemeral=True)
 
-        # Считаем все сервера selfbot'а кроме игнорируемых
-        total_guilds = len([g for g in self.bot.guilds]) - len(IGNORED_GUILDS)
-
-        guild_data = await ask_selfbot(resolved.id)
+        guild_data, total_guilds = await ask_selfbot(resolved.id)
 
         if guild_data is None:
             await interaction.followup.send("Selfbot не ответил, попробуй позже.", ephemeral=True)
