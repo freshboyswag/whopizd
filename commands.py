@@ -36,13 +36,9 @@ async def ask_selfbot(user_id: int) -> list | None:
 
 
 def format_roles(roles: list) -> str:
-    lines = []
-    for r in roles:
-        lines.append(f"│ {r['name']}")
-    if not lines:
-        return "```\n—\n```"
-    inner = "\n".join(lines)
-    return f"```\n┌─────────────────────┐\n{inner}\n└─────────────────────┘\n```"
+    if not roles:
+        return "—"
+    return " · ".join([r['name'] for r in roles])
 
 
 def build_overview_embed(user: discord.User, guild_data: list) -> discord.Embed:
