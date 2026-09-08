@@ -62,7 +62,7 @@ class SelfBot(discord.Client):
                 if member is None:
                     try:
                         member = await guild.fetch_member(user_id)
-                except Exception:
+                    except Exception:
                         continue
 
                 roles = [
