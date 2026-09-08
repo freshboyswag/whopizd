@@ -5,7 +5,6 @@ import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Используем selfbot_venv где установлен discord.py-self
 SELF_BOT_SITE = os.path.join(
     BASE_DIR,
     "selfbot_venv",
@@ -38,6 +37,7 @@ PROXY_AUTH = aiohttp.BasicAuth(PROXY_USER, PROXY_PASS)
 
 
 class SelfBot(discord.Client):
+
     def __init__(self):
         super().__init__(
             proxy=PROXY_URL,
@@ -131,7 +131,8 @@ class SelfBot(discord.Client):
 
                     response = {
                         "req_id": req_id,
-                        "data": data
+                        "data": data,
+                        "total_guilds": len(self.guilds),
                     }
 
                     with open(RESPONSE_FILE, "w", encoding="utf-8") as f:
