@@ -73,7 +73,7 @@ def build_detail_embed(user: discord.User, entry: dict) -> discord.Embed:
 
     embed.add_field(
         name=f"Роли ({len(entry['roles'])})",
-        value=format_roles(entry["roles"]),
+        value=f"```{format_roles(entry['roles'])}```",
         inline=False
     )
     embed.set_footer(text=f"ID: {user.id}")
