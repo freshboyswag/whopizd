@@ -13,6 +13,17 @@ TIMEOUT = 60
 IGNORED_GUILDS = {1346230894951661632}
 
 
+def pluralize(n: int, one: str, few: str, many: str) -> str:
+    if 11 <= n % 100 <= 19:
+        return many
+    r = n % 10
+    if r == 1:
+        return one
+    if 2 <= r <= 4:
+        return few
+    return many
+
+
 async def ask_selfbot(user_id: int) -> tuple[list, int] | tuple[None, None]:
     req_id = str(uuid.uuid4())
 
@@ -44,12 +55,12 @@ def format_roles(roles: list) -> str:
 
 def build_overview_embed(user: discord.User, guild_data: list, total_guilds: int) -> discord.Embed:
     embed = discord.Embed(color=0x36393F)
-    embed.set_author(name=user.name)
+    embed.set_thumbnail(url=user.display_avatar.url)
 
     lines = [f"✅ **{entry['guild_name']}**" for entry in guild_data]
-    embed.description = "\n".join(lines) if lines else "Нет серверов с ролями"
+    embed.description = f"**{user.name}**\n\n" + "\n".join(lines) if lines else f"**{user.name}**\n\nНет серверов с ролями"
 
-    embed.set_footer(text=f"Серверов в базе: {total_guilds}")
+    embed.set_footer(text=f"{total_guilds} {pluralize(total_guilds, 'сервер в базе', 'сервера в базе', 'серверов в базе')}")
     return embed
 
 
@@ -72,8 +83,9 @@ def build_detail_embed(user: discord.User, entry: dict) -> discord.Embed:
         except Exception:
             pass
 
+    role_count = len(entry['roles'])
     embed.add_field(
-        name=f"Роли ({len(entry['roles'])})",
+        name=f"{role_count} {pluralize(role_count, 'роль', 'роли', 'ролей')}",
         value=f"```{format_roles(entry['roles'])}```",
         inline=False
     )
@@ -89,7 +101,7 @@ class GuildSelect(discord.ui.Select):
             discord.SelectOption(
                 label=entry["guild_name"][:100],
                 value=str(entry["guild_id"]),
-                description=f"{len(entry['roles'])} роль(-и/-ей)",
+                description=f"{len(entry['roles'])} {pluralize(len(entry['roles']), 'роль', 'роли', 'ролей')}",
             )
             for entry in guild_data[:25]
         ]
@@ -114,7 +126,7 @@ class CheckCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="check", description="\\")
+    @app_commands.command(name="check", description=".")
     async def check(
         self,
         interaction: discord.Interaction,
