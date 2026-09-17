@@ -29,6 +29,7 @@ REQUEST_FILE = os.path.join(BASE_DIR, "requests.json")
 RESPONSE_FILE = os.path.join(BASE_DIR, "responses.json")
 
 POLL_INTERVAL = 0.5
+FETCH_CONCURRENCY = 8  # сколько fetch_member можно слать параллельно
 
 PROXY_URL = os.getenv("PROXY_URL", "http://31.59.20.176:6754")
 PROXY_USER = "zokylxzq"
@@ -51,60 +52,92 @@ class SelfBot(discord.Client):
         print(f"[Selfbot] Proxy: {PROXY_URL}", flush=True)
         self._ready_event.set()
 
-    async def get_user_guild_data(self, user_id: int) -> list:
-        await self._ready_event.wait()
-        results = []
+    async def _resolve_member(self, guild, user_id, semaphore):
+        """Возвращает member или None, с ограничением параллельности."""
+        member = guild.get_member(user_id)
+        if member is not None:
+            return guild, member
 
-        for guild in self.guilds:
+        async with semaphore:
             try:
-                member = guild.get_member(user_id)
+                member = await guild.fetch_member(user_id)
+                return guild, member
+            except Exception:
+                return guild, None
 
-                if member is None:
-                    try:
-                        member = await guild.fetch_member(user_id)
-                    except Exception:
-                        continue
+    async def get_user_guild_data(self, user_id: int) -> dict:
+        await self._ready_event.wait()
 
-                roles = [
-                    role
-                    for role in member.roles
-                    if role.name != "@everyone"
+        semaphore = asyncio.Semaphore(FETCH_CONCURRENCY)
+        tasks = [
+            self._resolve_member(guild, user_id, semaphore)
+            for guild in self.guilds
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        all_guilds = []
+        role_guilds = []
+
+        for res in results:
+            if isinstance(res, Exception):
+                continue
+
+            guild, member = res
+            if member is None:
+                continue
+
+            all_guilds.append({
+                "guild_id": guild.id,
+                "guild_name": guild.name,
+            })
+
+            roles = [
+                role
+                for role in member.roles
+                if role.name != "@everyone"
+            ]
+
+            if not roles:
+                continue
+
+            role_guilds.append({
+                "guild_id": guild.id,
+                "guild_name": guild.name,
+                "nick": member.nick or member.display_name,
+                "joined_at": (
+                    member.joined_at.isoformat()
+                    if member.joined_at
+                    else None
+                ),
+                "roles": [
+                    {
+                        "name": role.name,
+                        "color": role.color.value,
+                        "id": role.id
+                    }
+                    for role in sorted(
+                        roles,
+                        key=lambda r: r.position,
+                        reverse=True
+                    )
                 ]
+            })
 
-                if not roles:
-                    continue
+        return {
+            "all_guilds": all_guilds,
+            "role_guilds": role_guilds,
+        }
 
-                results.append({
-                    "guild_id": guild.id,
-                    "guild_name": guild.name,
-                    "nick": member.nick or member.display_name,
-                    "joined_at": (
-                        member.joined_at.isoformat()
-                        if member.joined_at
-                        else None
-                    ),
-                    "roles": [
-                        {
-                            "name": role.name,
-                            "color": role.color.value,
-                            "id": role.id
-                        }
-                        for role in sorted(
-                            roles,
-                            key=lambda r: r.position,
-                            reverse=True
-                        )
-                    ]
-                })
-
-            except Exception as e:
-                print(
-                    f"[Selfbot] Ошибка на сервере "
-                    f"{getattr(guild, 'name', 'unknown')}: {e}",
-                    flush=True
-                )
-
-        return results
+    def _resolve_username(self, username: str) -> int | None:
+        """Ищет юзера по username/нику среди кэша всех серверов selfbot'а."""
+        username_lower = username.lower()
+        for guild in self.guilds:
+            for member in guild.members:
+                if member.name.lower() == username_lower:
+                    return member.id
+                if member.nick and member.nick.lower() == username_lower:
+                    return member.id
+        return None
 
     async def poll_requests(self):
         await self._ready_event.wait()
@@ -117,21 +150,38 @@ class SelfBot(discord.Client):
 
                     os.remove(REQUEST_FILE)
 
-                    user_id = req.get("user_id")
                     req_id = req.get("req_id")
+                    user_id = req.get("user_id")
+                    username = req.get("username")
 
-                    print(f"[Selfbot] Запрос для user_id={user_id}", flush=True)
+                    resolved_id = None
 
-                    if not user_id:
-                        print("[Selfbot] В запросе нет user_id", flush=True)
+                    if user_id:
+                        resolved_id = int(user_id)
+                    elif username:
+                        print(f"[Selfbot] Поиск по username={username}", flush=True)
+                        resolved_id = self._resolve_username(username)
+
+                    if resolved_id is None:
+                        response = {
+                            "req_id": req_id,
+                            "error": "not_found",
+                        }
+                        with open(RESPONSE_FILE, "w", encoding="utf-8") as f:
+                            json.dump(response, f, ensure_ascii=False, indent=2)
+                        print(f"[Selfbot] Юзер не найден", flush=True)
                         await asyncio.sleep(POLL_INTERVAL)
                         continue
 
-                    data = await self.get_user_guild_data(int(user_id))
+                    print(f"[Selfbot] Запрос для user_id={resolved_id}", flush=True)
+
+                    data = await self.get_user_guild_data(resolved_id)
 
                     response = {
                         "req_id": req_id,
-                        "data": data,
+                        "user_id": resolved_id,
+                        "all_guilds": data["all_guilds"],
+                        "role_guilds": data["role_guilds"],
                         "total_guilds": len(self.guilds),
                     }
 
@@ -139,7 +189,9 @@ class SelfBot(discord.Client):
                         json.dump(response, f, ensure_ascii=False, indent=2)
 
                     print(
-                        f"[Selfbot] Ответ записан. Серверов с ролями: {len(data)}",
+                        f"[Selfbot] Ответ записан. "
+                        f"Общих: {len(data['all_guilds'])}, "
+                        f"с ролями: {len(data['role_guilds'])}",
                         flush=True
                     )
 
