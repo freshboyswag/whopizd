@@ -121,15 +121,30 @@ def tokens_of(s: str) -> list:
     return list(tokens)
 
 
+MIN_TOKEN_LEN_FOR_REVERSE_MATCH = 3
+
+
 def matches_query(candidate: str, variants: set) -> bool:
+    """
+    Совпадение считается только если:
+    - запрос (v) является подстрокой кандидата (основной случай: ищем "doll" в "Dollar123"), или
+    - кандидат является подстрокой запроса, но только если кандидат достаточно длинный
+      (защита от ложных срабатываний коротких токенов типа отдельных цифр/букв).
+    """
     candidate = candidate.lower()
     if not candidate:
         return False
+
     for v in variants:
         if not v:
             continue
-        if v in candidate or candidate in v:
+
+        if v in candidate:
             return True
+
+        if len(candidate) >= MIN_TOKEN_LEN_FOR_REVERSE_MATCH and candidate in v:
+            return True
+
     return False
 
 
